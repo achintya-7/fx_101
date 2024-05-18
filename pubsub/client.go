@@ -1,14 +1,17 @@
 package pubsub
 
-import "log"
+import (
+	"fx_101/config"
+	"log"
+)
 
 type Client struct {
 	Topic string
 }
 
-func NewPubSub(topic string) *Client {
+func NewPubSub(config *config.Config) *Client {
 	return &Client{
-		Topic: topic,
+		Topic: config.Topic,
 	}
 }
 

@@ -1,50 +1,77 @@
 package main
 
 import (
+	"context"
 	"fx_101/config"
 	"fx_101/controllers"
+	v1 "fx_101/handlers/v1"
+	v2 "fx_101/handlers/v2"
 	"fx_101/mongo"
 	"fx_101/postgres"
 	"fx_101/pubsub"
+	"log"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/fx"
 )
 
 type Server struct {
-	router   *gin.Engine
-	mongo    *mongo.Client
-	postgres *postgres.Client
-	pubSub   *pubsub.Client
+	router *gin.Engine
 }
 
-func NewServer() *Server {
-	config := config.NewConfig()
+func NewServer(lc fx.Lifecycle, apiRouter *ApiRouter) *Server {
 
-	return &Server{
-		mongo:    mongo.NewMongo(config.MongoUrl),
-		postgres: postgres.NewPostgres(config.PostgresUrl),
-		pubSub:   pubsub.NewPubSub(config.Topic),
+	server := &Server{
+		router: apiRouter.Router,
 	}
+
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			log.Println("Starting server")
+			go server.Run()
+			return nil
+		},
+		OnStop: func(context.Context) error {
+			log.Println("Shutting down server")
+			return nil
+		},
+	})
+
+	return server
 }
 
 func (s *Server) Run() {
-	s.setupRoutes()
-
 	s.router.Run(":8080")
 }
 
-func (s *Server) setupRoutes() {
+type ApiRouter struct {
+	Router *gin.Engine
+}
+
+func SetupRoutes(v1Router *controllers.V1Router, v2Router *controllers.V2Router) *ApiRouter {
 	router := gin.Default()
 
 	baseRouter := router.Group("/")
 
-	v1Router := controllers.NewRouter(s.mongo, s.postgres, s.pubSub)
 	v1Router.SetupRoutes(baseRouter)
+	v2Router.SetupRoutes(baseRouter)
 
-	s.router = router
+	return &ApiRouter{Router: router}
 }
 
 func main() {
-	server := NewServer()
-	server.Run()
+	fx.New(
+		fx.Provide(
+			config.NewConfig,
+			mongo.NewMongo,
+			postgres.NewPostgres,
+			pubsub.NewPubSub,
+			controllers.NewV1Router,
+			controllers.NewV2Router,
+			SetupRoutes,
+			v1.NewRouteHandler,
+			v2.NewRouteHandler,
+		),
+		fx.Invoke(NewServer),
+	).Run()
 }

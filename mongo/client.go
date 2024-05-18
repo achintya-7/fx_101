@@ -1,14 +1,17 @@
 package mongo
 
-import "log"
+import (
+	"fx_101/config"
+	"log"
+)
 
 type Client struct {
 	Url string
 }
 
-func NewMongo(url string) *Client {
+func NewMongo(config *config.Config) *Client {
 	return &Client{
-		Url: url,
+		Url: config.MongoUrl,
 	}
 }
 

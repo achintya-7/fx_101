@@ -1,14 +1,17 @@
 package postgres
 
-import "log"
+import (
+	"fx_101/config"
+	"log"
+)
 
 type Client struct {
 	Url string
 }
 
-func NewPostgres(url string) *Client {
+func NewPostgres(config *config.Config) *Client {
 	return &Client{
-		Url: url,
+		Url: config.PostgresUrl,
 	}
 }
 

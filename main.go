@@ -1,26 +1,14 @@
 package main
 
 import (
+	"fx_101/config"
+	"fx_101/controllers"
 	"fx_101/mongo"
 	"fx_101/postgres"
 	"fx_101/pubsub"
 
 	"github.com/gin-gonic/gin"
 )
-
-type Config struct {
-	Topic       string
-	MongoUrl    string
-	PostgresUrl string
-}
-
-func NewConfig() *Config {
-	return &Config{
-		Topic:       "my-topic",
-		MongoUrl:    "mongodb://localhost:27017",
-		PostgresUrl: "postgres://localhost:5432",
-	}
-}
 
 type Server struct {
 	router   *gin.Engine
@@ -30,10 +18,9 @@ type Server struct {
 }
 
 func NewServer() *Server {
-	config := NewConfig()
+	config := config.NewConfig()
 
 	return &Server{
-		router:   gin.Default(),
 		mongo:    mongo.NewMongo(config.MongoUrl),
 		postgres: postgres.NewPostgres(config.PostgresUrl),
 		pubSub:   pubsub.NewPubSub(config.Topic),
@@ -47,5 +34,17 @@ func (s *Server) Run() {
 }
 
 func (s *Server) setupRoutes() {
-	
+	router := gin.Default()
+
+	baseRouter := router.Group("/")
+
+	v1Router := controllers.NewRouter(s.mongo, s.postgres, s.pubSub)
+	v1Router.SetupRoutes(baseRouter)
+
+	s.router = router
+}
+
+func main() {
+	server := NewServer()
+	server.Run()
 }
